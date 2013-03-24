@@ -303,9 +303,9 @@ class Player(Character):
       self.hand.gun.fire(self.x, self.y, target.x, target.y)
     else:
       add_status("No gun in hand!")
-#############################################
-# bsp sample
-#############################################
+#########################
+# BEGIN bsp sample code #
+#########################
 bsp_depth = 8
 bsp_min_room_size = 4
 # a room fills a random part of the node or the maximum available space ?
@@ -490,10 +490,15 @@ def render_bsp():
         if bsp_map[x][y]:
           gameworld[x][y].unblock()
 
+#######################
+# END bsp sample code #
+#######################
+
 ############
 # Game run #
 ############
-# Find an unoccupied tile
+
+# Returns an unoccupied tile.
 def find_open_tile():
   x = random.randint(0,MAP_WIDTH-1)
   y = random.randint(0,MAP_HEIGHT-1)
@@ -501,52 +506,51 @@ def find_open_tile():
     x = random.randint(0,MAP_WIDTH-1)
     y = random.randint(0,MAP_HEIGHT-1)
   return [x,y]
-# Find an open tile that the player can't see.
+
+# Returns an open tile that the player can't see.
 def find_blind_open_tile():
   x,y=find_open_tile()
   while libtcod.map_is_in_fov (player.fov, x, y):
     x,y=find_open_tile()
   return [x,y]
 
-def place_player():
-  x,y = find_open_tile()
-  global player
-  player = Player ('Player', 10000, x, y, "@", libtcod.white, view_distance = 15)
-
-# Get user input and update game accordingly.
+# Gets the key input and updates the game.
 def handle_keys (key):
   global player
+
+  # If this is the first run of the game, then build a game world and place the player on it.
   if firstRun:
     render_bsp()
     place_player()
+
   # Exit the game on escape.
   if libtcod.KEY_ESCAPE == key.vk:
     return True
   if player.health > 0:
-    if ord('i') == key.c:
+    if ord('i') == key.c and key.pressed:
       turn = True
-    elif ord('8') == key.c:
+    elif ord('8') == key.c and key.pressed:
       player.move (0, -1)
       turn = True
-    elif ord('k') == key.c:
+    elif ord('k') == key.c and key.pressed:
       player.move (0, 1)
       turn = True
-    elif ord('u') == key.c:
+    elif ord('u') == key.c and key.pressed:
       player.move (-1, 0)
       turn = True
-    elif ord('o') == key.c:
+    elif ord('o') == key.c and key.pressed:
       player.move (1, 0)
       turn = True
-    elif ord('7') == key.c:
+    elif ord('7') == key.c and key.pressed:
       player.move (-1, -1)
       turn = True
-    elif ord('9') == key.c:
+    elif ord('9') == key.c and key.pressed:
       player.move (1, -1)
       turn = True
-    elif ord('j') == key.c:
+    elif ord('j') == key.c and key.pressed:
       player.move (-1, 1)
       turn = True
-    elif ord('l') == key.c:
+    elif ord('l') == key.c and key.pressed:
       player.move (1, 1)
       turn = True
   render()
@@ -586,25 +590,20 @@ def render():
         elif libtcod.map_is_in_fov (player.fov, x, y):
           libtcod.console_set_char_background (game_console, x, y, WALL_COLOR, libtcod.BKGND_SET)
           gameworld[x][y].explored=True
-  ## render the level
-  #for y in range(MAP_HEIGHT):
-  #    for x in range(MAP_WIDTH):
-  #        if not gameworld[x][y].is_floor():
-  #            libtcod.console_set_char_background(game_console, x, y, DARK_WALL_COLOR,
-  #                                     libtcod.BKGND_SET)
-  #        else:
-  #            libtcod.console_set_char_background(game_console, x, y, DARK_FLOOR_COLOR,
-  #                                     libtcod.BKGND_SET)
 
+  # Blits the game console to the root console.
   libtcod.console_blit(game_console,0,0,MAP_WIDTH,MAP_HEIGHT,0,0,0,1)
 
-
+# Places the player character on a non-wall tile.
 def place_player():
   x,y = find_open_tile()
   global player
   player = Player ('Player', 10000, x, y, "@", libtcod.white, view_distance = 15)
 
+# This is the first run of the game.
 firstRun = True
+## Changes the keyboard repeat delay.
+# libtcod.console_set_keyboard_repeat(0, 0)
 ###############
 ## Game loop ##
 ###############
@@ -615,5 +614,5 @@ while not libtcod.console_is_window_closed ():
     key = libtcod.console_check_for_keypress()
   if handle_keys (key):
     break
-  libtcod.console_flush ()
   firstRun = False
+  libtcod.console_flush ()
