@@ -21,6 +21,11 @@ DARK_WALL_COLOR = libtcod.Color (31, 31, 31)
 DARK_FLOOR_COLOR = libtcod.Color(63, 63, 63)
 DARK_DOOR_COLOR = libtcod.dark_orange
 
+
+# Settings
+ENEMY_SPAWN_CHANCE = 0.15
+ZOMBIE_MOVE_CHANCE = 0.5
+
 # Set the fps.
 libtcod.sys_set_fps(45)
 
@@ -37,6 +42,7 @@ game_console = libtcod.console_new(MAP_WIDTH, MAP_HEIGHT)
 status_console = libtcod.console_new(SCREEN_WIDTH, (SCREEN_HEIGHT - MAP_HEIGHT))
 # Create an items console
 items_console = libtcod.console_new(30, 40)
+menu_console = libtcod.console_new(SCREEN_WIDTH, SCREEN_HEIGHT)
 
 ##################
 ## Game objects ##
@@ -149,7 +155,7 @@ class Character (Object):
     self.health = health
 
   def attack (self, character):
-    damage = self.strength*random.randint(self.strength/2, self.strength*2)
+    damage = self.strength*random.randint(self.strength//2, self.strength*2)
     if random.random() <= self.to_hit:
       add_status("%s hits %s!" % (self.name, character.name))
       if damage > (0.5*character.max_health):
@@ -179,7 +185,7 @@ class Player(Character):
     self.char = char
     self.color = color
     self.items = []
-    self.equipped = []
+    self.equipped = list()
     self.hand = None
     self.view_distance = view_distance
     self.strength = strength
@@ -205,23 +211,24 @@ class Player(Character):
 #        add_status("A %s."% (item.name))
     self.compute_fov()
 
-#  def show_inventory(self):
-#    if self.items:
-#      item = item_selector(self.items, equipped=self.equipped)
-#      if item:
-#        if item.health:
-#          self.health = self.health+item.health.value
-#          if self.health > self.max_health:
-#            self.health = self.max_health
-#            add_status("%s health added." % (item.health.value))
-#          self.items.remove(item)
-#        else:
-#          if not self.hand == item:
-#            self.hand=item
-#            add_status("%s equipped." % (self.hand.name))
-#          else:
-#            add_status("%s unequipped." % (self.hand.name))
-#            self.hand = None
+  def show_inventory(self):
+    if self.items:
+      count = item_selector(self.items, equipped=self.equipped)
+      if not count == -1:
+        item = self.items[count]
+        if item.health:
+          self.health = self.health+item.health.value
+          if self.health > self.max_health:
+            self.health = self.max_health
+            add_status("%s health added." % (item.health.value))
+          self.items.remove(item)
+        else:
+          if not item in self.equipped:
+            self.equipped.append(item)
+            add_status("%s equipped." % (item.name))
+          else:
+            add_status("%s unequipped." % (item.name))
+            self.equipped.remove(item)
 
   def compute_fov(self):
     for x in range (MAP_WIDTH):
@@ -234,15 +241,17 @@ class Player(Character):
   def pick_up(self):
     if gameworld[self.x][self.y].items:
       if len(gameworld[self.x][self.y].items) > 1:
-        item = item_selector(gameworld[self.x][self.y].items)
+        count = item_selector(gameworld[self.x][self.y].items)
       else:
-        item = gameworld[self.x][self.y].items[0]
-      gameworld[self.x][self.y].items.remove(item)
-      if item.money:
-        self.money = self.money + item.money.value
-      else:
-        self.items.append(item)
-      add_status ("%s picked up %s." % (self.name, item.name))
+        count = 0
+      if not count==-1:
+        item = gameworld[self.x][self.y].items[count]
+        gameworld[self.x][self.y].items.remove(item)
+        if item.money:
+          self.money = self.money + item.money.value
+        else:
+          self.items.append(item)
+        add_status ("%s picked up %s." % (self.name, item.name))
     else:
       add_status ("Nothing to pick up!")
 #
@@ -260,55 +269,61 @@ class Player(Character):
 #      else:
 #        add_status("Nothing to drop!")
 #
-#  # Aim and shoot the player's gun.
-#  def shoot(self):
-#    if self.hand and self.hand.gun and self.hand.gun.ammo > 0:
-#      class Target:
-#       def __init__(self, x, y):
-#          self.x = x
-#          self.y = y
-#      target = Target(self.x, self.y)
-#      libtcod.console_blit(game_console,0,0,MAP_WIDTH,MAP_HEIGHT,0,0,0,1)
-#      libtcod.console_flush()
-#      key = libtcod.console_wait_for_keypress(True)
-#      while not key.vk == libtcod.KEY_SPACE:
-#        render()
-#        if ord('8') == key.c:
-#          target.y=target.y-1
-#        elif ord('k') == key.c:
-#          target.y=target.y+1
-#        elif ord('u') == key.c:
-#          target.x=target.x-1
-#        elif ord('o') == key.c:
-#          target.x=target.x+1
-#        elif ord('7') == key.c:
-#          target.x=target.x-1
-#          target.y=target.y-1
-#        elif ord('9') == key.c:
-#          target.x=target.x+1
-#          target.y=target.y-1
-#        elif ord('j') == key.c:
-#          target.x=target.x-1
-#          target.y=target.y+1
-#        elif ord('l') == key.c:
-#          target.x=target.x+1
-#          target.y=target.y+1
-#        libtcod.line_init(self.x, self.y, target.x, target.y)
-#        x,y=libtcod.line_step()
-#        while (not x is None):
-#          if gameworld[x][y].is_floor() and libtcod.map_is_in_fov (player.fov, x, y):
-#            libtcod.console_set_back(game_console, x, y, libtcod.white, libtcod.BKGND_OVERLAY)
-#            target.x=x
-#            target.y=y
-#            x,y=libtcod.line_step()
-#          else:
-#            break
-#        libtcod.console_blit(game_console,0,0,MAP_WIDTH,MAP_HEIGHT,0,0,0,1)
-#        libtcod.console_flush()
-#        key = libtcod.console_wait_for_keypress(True)
-#      self.hand.gun.fire(self.x, self.y, target.x, target.y)
-#    else:
-#      add_status("No gun in hand!")
+  # Aim and shoot the player's gun.
+  def shoot(self):
+    gun = -1
+    for i in range(len(self.equipped)):
+      if self.equipped[i].gun and self.equipped[i].gun.ammo > 0:
+        gun = i
+    if not gun==-1:
+      class Target:
+       def __init__(self, x, y):
+          self.x = x
+          self.y = y
+      target = Target(self.x, self.y)
+      libtcod.console_blit(game_console,0,0,MAP_WIDTH,MAP_HEIGHT,0,0,0,1)
+      libtcod.console_flush()
+      key = libtcod.console_wait_for_keypress(True)
+      while not key.vk == libtcod.KEY_SPACE:
+        render()
+        if key.pressed:
+          if ord('k') == key.c:
+            target.y=target.y-1
+          elif ord('j') == key.c:
+            target.y=target.y+1
+          elif ord('h') == key.c:
+            target.x=target.x-1
+          elif ord('l') == key.c:
+            target.x=target.x+1
+          elif ord('y') == key.c:
+            target.x=target.x-1
+            target.y=target.y-1
+          elif ord('u') == key.c:
+            target.x=target.x+1
+            target.y=target.y-1
+          elif ord('i') == key.c:
+            target.x=target.x-1
+            target.y=target.y+1
+          elif ord('o') == key.c:
+            target.x=target.x+1
+            target.y=target.y+1
+        libtcod.line_init(self.x, self.y, target.x, target.y)
+        x,y=libtcod.line_step()
+        while (not x is None):
+          if gameworld[x][y].is_floor() and libtcod.map_is_in_fov (player.fov, x, y):
+            libtcod.console_set_char_background(game_console, x, y,
+                libtcod.white, libtcod.BKGND_OVERLAY)
+            target.x=x
+            target.y=y
+            x,y=libtcod.line_step()
+          else:
+            break
+        libtcod.console_blit(game_console,0,0,MAP_WIDTH,MAP_HEIGHT,0,0,0,1)
+        libtcod.console_flush()
+        key = libtcod.console_wait_for_keypress(True)
+      self.equipped[gun].gun.fire(self.x, self.y, target.x, target.y)
+    else:
+      add_status("No gun in hand!")
 
 
 class Item (Object):
@@ -356,7 +371,7 @@ class Gun ():
     while (not lx is None):
       steps = steps + 1
       if not gameworld[lx][ly].characters:
-        libtcod.console_set_back(game_console, lx, ly, libtcod.white, libtcod.BKGND_OVERLAY)
+        libtcod.console_set_char_background(game_console, lx, ly, libtcod.white, libtcod.BKGND_OVERLAY)
         libtcod.console_blit(game_console,0,0,MAP_WIDTH,MAP_HEIGHT,0,0,0,1)
         libtcod.console_flush()
         lx,ly=libtcod.line_step()
@@ -684,6 +699,10 @@ def items_here():
     return True
   return False
 
+def current_items():
+  global tile_items
+  return tile_items
+
 def clear_items():
   global tile_items
   tile_items = list()
@@ -712,6 +731,76 @@ def draw_items():
       1.0,0.5)
   libtcod.console_flush()
 
+def item_selector(items, default=None, equipped=[]):
+  libtcod.console_clear(menu_console)
+  libtcod.console_set_default_background(menu_console, libtcod.black)
+  libtcod.console_set_default_foreground(menu_console, libtcod.white)
+  libtcod.console_rect(menu_console, 0, 0, MAP_WIDTH, MAP_HEIGHT, True)
+  libtcod.console_print_ex(menu_console,
+      40, 0, libtcod.BKGND_NONE, libtcod.CENTER, "INVENTORY")
+  libtcod.console_print_ex(menu_console,
+      1, SCREEN_HEIGHT-1, libtcod.LEFT,
+    libtcod.BKGND_NONE,
+    "[j / k]: Highlight item     [SPACEBAR]: Select     [q]: quit")
+  count = 0
+  for item in items:
+    libtcod.console_print_ex(menu_console,
+        1, count+3, libtcod.BKGND_NONE, libtcod.LEFT, item.name)
+    if item in equipped:
+      libtcod.console_print_ex(menu_console,
+          libtcod.console_get_width(menu_console)-1,
+          count+3,
+          libtcod.BKGND_NONE,
+          libtcod.RIGHT,
+          "(EQUIPPED)")
+    count = count + 1
+  if default:
+    count = items.index(default)
+  else:
+    count = count -1
+  key = libtcod.console_check_for_keypress(True)
+  while not key.vk == libtcod.KEY_SPACE and not ord('q') == key.c:
+
+    for i in range(len(items[count].name)):
+      libtcod.console_set_char_background(menu_console,
+          i+1,
+          count+3,
+          libtcod.white)
+      libtcod.console_set_char_foreground(menu_console,
+          i+1,
+          count+3,
+          libtcod.black)
+    if key.pressed and key.c == ord('k') and count > 0:
+      for i in range(len(items[count].name)):
+        libtcod.console_set_char_background(menu_console,
+            i+1,
+            count+3,
+            libtcod.black)
+        libtcod.console_set_char_foreground(menu_console,
+            i+1,
+            count+3,
+            libtcod.white)
+      count = count -1
+    elif key.pressed and key.c == ord('j') and count < len(items)-1:
+      for i in range(len(items[count].name)):
+        libtcod.console_set_char_background(menu_console,
+            i+1,
+            count+3,
+            libtcod.black)
+        libtcod.console_set_char_foreground(menu_console,
+            i+1,
+            count+3,
+            libtcod.white)
+      count = count +1
+    key = libtcod.console_check_for_keypress(True)
+    libtcod.console_blit(menu_console,0,0,SCREEN_WIDTH,SCREEN_HEIGHT,0,0,0,1)
+    libtcod.console_flush()
+
+  if ord('q') == key.c:
+    count=-1
+
+  return count
+
 ############
 # Game run #
 ############
@@ -734,7 +823,7 @@ def find_blind_open_tile():
 
 # Gets the key input and updates the game.
 def handle_keys (key):
-  global player
+  global player, turncount
 
   # Has a turn been accomplished?
   turn=False
@@ -770,7 +859,45 @@ def handle_keys (key):
     elif ord('c') == key.c :
       show_player_stats()
     elif ord(',') == key.c :
-      item_selector()
+      player.pick_up()
+    elif ord('.') == key.c :
+      player.show_inventory()
+    elif ord('z') == key.c :
+      player.shoot()
+    if turn:
+      # Move all enemies toward the player.
+      characters = []
+      for y in range (MAP_HEIGHT):
+        for x in range (MAP_WIDTH):
+            for character in gameworld[x][y].characters:
+              characters.append(character)
+
+      for character in characters:
+        if character.npc and player.health > 0 and random.random() <= ZOMBIE_MOVE_CHANCE:
+          path = libtcod.path_new_using_map(player.fov)
+          # Compute the path between the hostile object and the player.
+          libtcod.path_compute(path, character.get_x(), character.get_y(),
+            player.get_x(), player.get_y())
+          if libtcod.path_size(path) < 100:
+            libtcod.path_walk(path, True)
+            character.move_to_coordinates(libtcod.path_get_origin(path)[0], libtcod.path_get_origin(path)[1])
+      #spawn a new zombie
+      if random.random() <= ENEMY_SPAWN_CHANCE:
+        x,y=find_blind_open_tile()
+        Character('Zombie', random.randint(5,20), x, y, "Z", libtcod.black, npc=True)
+        if random.random() <= 0.20:
+          Item ('cheap revolver', x, y, 'r', libtcod.red, gun=Gun(5, 0.6))
+          gameworld[x][y].characters[0].pick_up()
+        if random.random() <= 0.02:
+          Item ('silver revolver', x, y, 'r', libtcod.cyan, gun=Gun(15, 0.9))
+          gameworld[x][y].characters[0].pick_up()
+        if random.random() <= 0.10:
+          Item ('medkit', x, y, 'H', libtcod.red, health=Health(100))
+          gameworld[x][y].characters[0].pick_up()
+      turncount = turncount + 1
+      if player.health < player.max_health:
+        player.heatlh = player.health + 1
+
 
   ## Add items in the current tile to the status.
   # for item in gameworld[player.x][player.y].items:
@@ -781,7 +908,8 @@ def handle_keys (key):
   # Show the statusbar.
   display_status()
   # Clear the status string.
-  clear_status()
+  if turn:
+    clear_status()
   # Render events.
   render()
   # If there are items on the player's current tile, draw them to the screen.
@@ -855,6 +983,7 @@ tile_items = list()
 
 # This is the first run of the game.
 firstRun = True
+turncount = 0
 
 ## Changes the keyboard repeat delay.
 # libtcod.console_set_keyboard_repeat(0, 0)
