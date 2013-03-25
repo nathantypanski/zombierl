@@ -863,6 +863,7 @@ def handle_keys (key):
     elif ord('.') == key.c :
       player.show_inventory()
     elif ord('z') == key.c :
+      turn = True
       player.shoot()
     if turn:
       # Move all enemies toward the player.
