@@ -254,21 +254,23 @@ class Player(Character):
         add_status ("%s picked up %s." % (self.name, item.name))
     else:
       add_status ("Nothing to pick up!")
-#
-#  def drop(self):
-#    if self.items:
-#      items = self.items[:]
-#      if self.hand:
-#        items.remove(self.hand)
-#      if items:
-#        item = item_selector(items)
-#        if item:
-#          self.items.remove(item)
-#          gameworld[self.x][self.y].items.append(item)
-#          add_status("%s dropped %s." % (self.name, item.name))
-#      else:
-#        add_status("Nothing to drop!")
-#
+
+  def drop(self):
+    if self.items:
+      items = self.items[:]
+      if self.equipped:
+        for i in self.equipped:
+          items.remove(i)
+      if items:
+        count = item_selector(items)
+        if not count==-1:
+          item = items[count]
+          self.items.remove(item)
+          gameworld[self.x][self.y].items.append(item)
+          add_status("%s dropped %s." % (self.name, item.name))
+      else:
+        add_status("Nothing to drop!")
+
   # Aim and shoot the player's gun.
   def shoot(self):
     gun = -1
@@ -862,9 +864,11 @@ def handle_keys (key):
       player.pick_up()
     elif ord('.') == key.c :
       player.show_inventory()
+    elif ord('d') == key.c :
+      player.drop()
     elif ord('z') == key.c :
-      turn = True
       player.shoot()
+      turn = True
     if turn:
       # Move all enemies toward the player.
       characters = []
