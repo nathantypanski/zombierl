@@ -1,4 +1,21 @@
-#!/usr/bin/python3
+#!/usr/bin/python
+
+#  zombie.py is a simple zombie-themed roguelike game.
+#  Copyright (C) 2013  Nathan Typanski
+#
+#  This program is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 import libtcodpy as libtcod
 import math, random, pprint, os
 pp = pprint.PrettyPrinter(indent=4)
@@ -38,6 +55,9 @@ libtcod.console_set_custom_font(font,
 libtcod.console_init_root (SCREEN_WIDTH, SCREEN_HEIGHT, b'zombie.py', False)
 # Create the game console.
 game_console = libtcod.console_new(MAP_WIDTH, MAP_HEIGHT)
+gun_console  = libtcod.console_new(MAP_WIDTH, MAP_HEIGHT)
+# Make the background of gun_console transparent on black.
+libtcod.console_set_key_color(gun_console,libtcod.black)
 # Create the game status console.
 status_console = libtcod.console_new(SCREEN_WIDTH, (SCREEN_HEIGHT - MAP_HEIGHT))
 # Create an items console
@@ -72,26 +92,33 @@ class Tile:
 class Object:
 
   def __init__ (self, name, x, y, char, color):
-    self.name = name
-    self.x = x
-    self.y = y
-    self.char = char
-    self.color = color
+    self._name = name
+    self._x = x
+    self._y = y
+    self._char = char
+    self._color = color
     gameworld[self.x][self.y].items.append(self)
 
   def is_hostile (self):
     return False
 
-  def get_x (self):
-    return self.x
+  @property
+  def x (self): return self._x
 
-  def get_y (self):
-    return self.y
+  @x.setter
+  def x(self,x):
+      self._x=x
 
+  @property
+  def y (self): return self._y
+
+  @y.setter
+  def y(self,y):
+      self._y=y
 class Character (Object):
 
   def __init__ (self, name, max_health, x, y, char, color, npc=False,
-      strength=5, to_hit=0.8):
+      strength=5, to_hit=0.8, view_distance=10):
     self.name = name
     self.health = max_health
     self.max_health = max_health
@@ -104,6 +131,7 @@ class Character (Object):
     self.npc = npc
     self.strength = strength
     self.to_hit = to_hit
+    self.view_distance=view_distance
     gameworld[self.x][self.y].characters.append(self)
 
   def move (self, dx, dy):
@@ -173,6 +201,14 @@ class Character (Object):
       gameworld[self.x][self.y].characters.remove(self)
       self.drop_all()
 
+  def compute_fov(self):
+    for x in range (MAP_WIDTH):
+      for y in range (MAP_HEIGHT):
+        if gameworld[x][y].is_floor():
+         libtcod.map_set_properties (self.fov, x , y, True, True)
+    libtcod.map_compute_fov (self.fov, self.x, self.y, self.view_distance,
+                            True,libtcod.FOV_DIAMOND)
+
 class Player(Character):
 
   def __init__ (self, name, max_health, x, y, char, color, view_distance=10,
@@ -230,13 +266,6 @@ class Player(Character):
             add_status("%s unequipped." % (item.name))
             self.equipped.remove(item)
 
-  def compute_fov(self):
-    for x in range (MAP_WIDTH):
-      for y in range (MAP_HEIGHT):
-        if gameworld[x][y].is_floor():
-         libtcod.map_set_properties (self.fov, x , y, True, True)
-    libtcod.map_compute_fov (self.fov, self.x, self.y, self.view_distance,
-                            True,libtcod.FOV_DIAMOND)
 
   def pick_up(self):
     if gameworld[self.x][self.y].items:
@@ -262,7 +291,7 @@ class Player(Character):
         for i in self.equipped:
           items.remove(i)
       if items:
-        count = item_selector(items)
+        count = item_selector(items, title="DROP ITEM")
         if not count==-1:
           item = items[count]
           self.items.remove(item)
@@ -311,16 +340,21 @@ class Player(Character):
             target.y=target.y+1
         libtcod.line_init(self.x, self.y, target.x, target.y)
         x,y=libtcod.line_step()
+
+        # Clear the console that shows our target line.
+        libtcod.console_clear(gun_console)
+        # Draw the target line on the gun console.
         while (not x is None):
           if gameworld[x][y].is_floor() and libtcod.map_is_in_fov (player.fov, x, y):
-            libtcod.console_set_char_background(game_console, x, y,
+            libtcod.console_set_char_background(gun_console, x, y,
                 libtcod.white, libtcod.BKGND_OVERLAY)
             target.x=x
             target.y=y
             x,y=libtcod.line_step()
           else:
             break
-        libtcod.console_blit(game_console,0,0,MAP_WIDTH,MAP_HEIGHT,0,0,0,1)
+        # Draw the gun console to the root console.
+        libtcod.console_blit(gun_console,0,0,MAP_WIDTH,MAP_HEIGHT,0,0,0,0,0.5)
         libtcod.console_flush()
         key = libtcod.console_wait_for_keypress(True)
       self.equipped[gun].gun.fire(self.x, self.y, target.x, target.y)
@@ -380,6 +414,9 @@ class Gun ():
       else:
         if random.random() <= shot_accuracy:
           add_status("You hit!")
+          libtcod.console_set_char_background(game_console, lx, ly, libtcod.red, libtcod.BKGND_OVERLAY)
+          libtcod.console_blit(game_console,0,0,MAP_WIDTH,MAP_HEIGHT,0,0,0,1)
+          libtcod.console_flush()
           gameworld[lx][ly].characters[-1].take_damage(int(self.damage*random.uniform(self.accuracy, 1.0)))
         else:
           add_status("You fire and miss!")
@@ -595,8 +632,10 @@ def display_status ():
     display_statusline(status)
     libtcod.console_blit(status_console,0,0,SCREEN_WIDTH,
         (SCREEN_HEIGHT-MAP_HEIGHT-1),0,0,MAP_HEIGHT+1,1)
+    libtcod.console_flush()
   else:
     display_statusline()
+    libtcod.console_flush()
 
 def display_statusline (message=""):
   display_player_stats()
@@ -620,6 +659,7 @@ def display_player_stats():
 def add_status (new_status):
   global status
   status = ("%s %s" % (status, new_status))
+  display_status()
 
 def clear_status ():
   global status
@@ -640,7 +680,6 @@ def show_player_stats():
       libtcod.console_get_width(player_stats),
       libtcod.console_get_height(player_stats),
       clear=True)
-
   height=0
   libtcod.console_print_rect(player_stats, 1, 1,
       libtcod.console_get_width(player_stats)-2,
@@ -648,6 +687,18 @@ def show_player_stats():
       "Name: %s \nHealth: %s/%s\nView distance: %s\nStrength: %s\nTo hit: %s\nExp: %s"#
       %(player.name,player.health,player.max_health, player.view_distance,
         player.strength,player.to_hit,player.exp))
+  libtcod.console_print_ex(player_stats,
+      libtcod.console_get_width(player_stats)//2,
+      0,
+      libtcod.BKGND_DEFAULT,
+      libtcod.CENTER,
+      "Player Stats")
+  libtcod.console_print_ex(player_stats,
+      libtcod.console_get_width(player_stats)//2,
+      libtcod.console_get_height(player_stats)-1,
+      libtcod.BKGND_DEFAULT,
+      libtcod.CENTER,
+      "[spacebar]")
   libtcod.console_blit(player_stats,0,0,
       libtcod.console_get_width(player_stats),
       libtcod.console_get_height(player_stats),
@@ -663,23 +714,6 @@ def show_player_stats():
       1.0,0.1)
     libtcod.console_flush()
   render()
-#    self.name = name
-#    self.health = max_health
-#    self.max_health = max_health
-#    self.x = x
-#    self.y = y
-#    self.char = char
-#    self.color = color
-#    self.items = []
-#    self.equipped = []
-#    self.hand = None
-#    self.view_distance = view_distance
-#    self.strength = strength
-#    self.to_hit = to_hit
-#    self.fov = libtcod.map_new(MAP_WIDTH, MAP_HEIGHT)
-#    self.npc = False
-#    self.exp = 0
-
 #################
 # Item functions
 #################
@@ -705,6 +739,8 @@ def current_items():
   global tile_items
   return tile_items
 
+# Resets the items list for the current title, called e.g. when the player
+# moves to a new tile.
 def clear_items():
   global tile_items
   tile_items = list()
@@ -715,7 +751,6 @@ def draw_items():
   libtcod.console_set_default_background(items_console, libtcod.red)
   libtcod.console_set_default_foreground(items_console, libtcod.white)
   libtcod.console_clear(items_console)
-#  pp.pprint(tile_items)
   for item in tile_items:
     height+=libtcod.console_print_rect_ex(items_console,
         0,
@@ -733,13 +768,13 @@ def draw_items():
       1.0,0.5)
   libtcod.console_flush()
 
-def item_selector(items, default=None, equipped=[]):
+def item_selector(items, default=None, equipped=[], title="INVENTORY"):
   libtcod.console_clear(menu_console)
   libtcod.console_set_default_background(menu_console, libtcod.black)
   libtcod.console_set_default_foreground(menu_console, libtcod.white)
   libtcod.console_rect(menu_console, 0, 0, MAP_WIDTH, MAP_HEIGHT, True)
   libtcod.console_print_ex(menu_console,
-      40, 0, libtcod.BKGND_NONE, libtcod.CENTER, "INVENTORY")
+      40, 0, libtcod.BKGND_NONE, libtcod.CENTER, title)
   libtcod.console_print_ex(menu_console,
       1, SCREEN_HEIGHT-1, libtcod.LEFT,
     libtcod.BKGND_NONE,
@@ -881,8 +916,8 @@ def handle_keys (key):
         if character.npc and player.health > 0 and random.random() <= ZOMBIE_MOVE_CHANCE:
           path = libtcod.path_new_using_map(player.fov)
           # Compute the path between the hostile object and the player.
-          libtcod.path_compute(path, character.get_x(), character.get_y(),
-            player.get_x(), player.get_y())
+          libtcod.path_compute(path, character.x(), character.y(),
+            player.x(), player.y())
           if libtcod.path_size(path) < 100:
             libtcod.path_walk(path, True)
             character.move_to_coordinates(libtcod.path_get_origin(path)[0], libtcod.path_get_origin(path)[1])
@@ -910,13 +945,16 @@ def handle_keys (key):
 
   ## Add items in the current tile to the items indicator.
   add_items()
-  # Show the statusbar.
-  display_status()
+
+  # Render events.
+  render()
+
   # Clear the status string.
   if turn:
     clear_status()
-  # Render events.
-  render()
+  # Show the statusbar.
+  display_status()
+
   # If there are items on the player's current tile, draw them to the screen.
   if items_here():
     draw_items()
@@ -975,10 +1013,10 @@ def render():
 def place_player():
   x,y = find_open_tile()
   global player
-  player = Player ('Player', 10000, x, y, "@", libtcod.white,
+  player = Player ('Player', 500, x, y, "@", libtcod.white,
       view_distance = 15)
-  Item ('silver revolver', x, y, 'r', libtcod.cyan, gun=Gun(15, 0.9))
-  Item ('silver revolver', x, y, 'r', libtcod.cyan, gun=Gun(15, 0.9))
+  #Item ('silver revolver', x, y, 'r', libtcod.cyan, gun=Gun(15, 0.9))
+  #Item ('silver revolver', x, y, 'r', libtcod.cyan, gun=Gun(15, 0.9))
 
 status=""
 libtcod.console_set_alignment(status_console, libtcod.LEFT)
@@ -988,6 +1026,7 @@ tile_items = list()
 
 # This is the first run of the game.
 firstRun = True
+turncount = 0
 turncount = 0
 
 ## Changes the keyboard repeat delay.
