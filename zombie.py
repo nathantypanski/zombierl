@@ -103,18 +103,21 @@ class Object:
     return False
 
   @property
-  def x (self): return self._x
+  def x (self):
+      return self._x
 
   @x.setter
-  def x(self,x):
+  def x (self,x):
       self._x=x
 
   @property
-  def y (self): return self._y
+  def y (self):
+      return self._y
 
   @y.setter
   def y(self,y):
       self._y=y
+
 class Character (Object):
 
   def __init__ (self, name, max_health, x, y, char, color, npc=False,
@@ -122,8 +125,8 @@ class Character (Object):
     self.name = name
     self.health = max_health
     self.max_health = max_health
-    self.x = x
-    self.y = y
+    self._x = x
+    self._y = y
     self.char = char
     self.color = color
     self.items = []
@@ -916,8 +919,8 @@ def handle_keys (key):
         if character.npc and player.health > 0 and random.random() <= ZOMBIE_MOVE_CHANCE:
           path = libtcod.path_new_using_map(player.fov)
           # Compute the path between the hostile object and the player.
-          libtcod.path_compute(path, character.x(), character.y(),
-            player.x(), player.y())
+          libtcod.path_compute(path, character.x, character.y,
+            player.x, player.y)
           if libtcod.path_size(path) < 100:
             libtcod.path_walk(path, True)
             character.move_to_coordinates(libtcod.path_get_origin(path)[0], libtcod.path_get_origin(path)[1])
