@@ -236,7 +236,8 @@ class Player(Character):
     self.compute_fov()
 
   def move (self, dx, dy):
-    if gameworld[self.x + dx][self.y + dy].characters or not gameworld[self.x + dx][self.y + dy].is_floor():
+    if (gameworld [self.x + dx][self.y + dy].characters
+    or not gameworld[self.x + dx][self.y + dy].is_floor()):
       characters = gameworld[self.x + dx][self.y + dy].characters
       if characters:
         for object in characters:
@@ -410,17 +411,28 @@ class Gun ():
     while (not lx is None):
       steps = steps + 1
       if not gameworld[lx][ly].characters:
-        libtcod.console_set_char_background(game_console, lx, ly, libtcod.white, libtcod.BKGND_OVERLAY)
+        libtcod.console_set_char_background(
+                game_console,
+                lx,
+                ly,
+                libtcod.white,
+                libtcod.BKGND_OVERLAY)
         libtcod.console_blit(game_console,0,0,MAP_WIDTH,MAP_HEIGHT,0,0,0,1)
         libtcod.console_flush()
         lx,ly=libtcod.line_step()
       else:
         if random.random() <= shot_accuracy:
           add_status("You hit!")
-          libtcod.console_set_char_background(game_console, lx, ly, libtcod.red, libtcod.BKGND_OVERLAY)
+          libtcod.console_set_char_background(
+                  game_console,
+                  lx,
+                  ly,
+                  libtcod.red,
+                  libtcod.BKGND_OVERLAY)
           libtcod.console_blit(game_console,0,0,MAP_WIDTH,MAP_HEIGHT,0,0,0,1)
           libtcod.console_flush()
-          gameworld[lx][ly].characters[-1].take_damage(int(self.damage*random.uniform(self.accuracy, 1.0)))
+          gameworld[lx][ly].characters[-1].take_damage(
+                  int(self.damage*random.uniform(self.accuracy, 1.0)))
         else:
           add_status("You fire and miss!")
         break
@@ -557,23 +569,30 @@ def traverse_node(node, dat):
 bsp = None
 bsp_generate = True
 bsp_refresh = False
-#def render_bsp(first, key, mouse):
+
 def render_bsp():
+
     global bsp, bsp_generate, bsp_refresh, bsp_map, gameworld
     global bsp_random_room, bsp_room_walls, bsp_depth, bsp_min_room_size
+
     if bsp_generate or bsp_refresh:
+
         # dungeon generation
         if bsp is None:
             # create the bsp
             bsp = libtcod.bsp_new_with_size(0, 0, MAP_WIDTH,
                                             MAP_HEIGHT)
+
         else:
             # restore the nodes size
             libtcod.bsp_resize(bsp, 0, 0, MAP_WIDTH,
                                MAP_HEIGHT)
+
         bsp_map = list()
+
         for x in range(MAP_WIDTH):
             bsp_map.append([False] * MAP_HEIGHT)
+
         if bsp_generate:
             # build a new random bsp tree
             libtcod.bsp_remove_sons(bsp)
@@ -581,31 +600,29 @@ def render_bsp():
                 libtcod.bsp_split_recursive(bsp, 0, bsp_depth,
                                             bsp_min_room_size + 1,
                                             bsp_min_room_size + 1, 1.5, 1.5)
+
             else:
                 libtcod.bsp_split_recursive(bsp, 0, bsp_depth,
                                             bsp_min_room_size,
                                             bsp_min_room_size, 1.5, 1.5)
+
         # create the dungeon from the bsp
         libtcod.bsp_traverse_inverted_level_order(bsp, traverse_node)
         bsp_generate = False
         bsp_refresh = False
+
     libtcod.console_set_default_foreground(game_console, libtcod.white)
     rooms = 'OFF'
+
     if bsp_random_room:
         rooms = 'ON'
-    ''''
-    libtcod.console_print(game_console, 1, 1,
-                               "ENTER : rebuild bsp\n"
-                               "SPACE : rebuild dungeon\n"
-                               "+-: bsp depth %d\n"
-                               "*/: room size %d\n"
-                               "1 : random room size %s" % (bsp_depth,
-                               bsp_min_room_size, rooms))
-    '''
+
     if bsp_random_room:
         walls = 'OFF'
+
         if bsp_room_walls:
             walls ='ON'
+
     for y in range(MAP_HEIGHT):
       for x in range(MAP_WIDTH):
         if bsp_map[x][y]:
@@ -618,29 +635,38 @@ def render_bsp():
 ## Status functions ##
 ######################
 
+
 # Displays the parsed string as a status message to the user.
 # Doesn't display strings larger than SCREEN_WIDTH yet.
 def display_status ():
   global status
+
   if status:
     libtcod.console_rect(status_console, 0, 0, SCREEN_WIDTH,
         (SCREEN_HEIGHT - MAP_HEIGHT), True)
     libtcod.console_set_default_foreground (status_console, libtcod.white)
+
     while len(status) > SCREEN_WIDTH*2:
       display_statusline(status[:SCREEN_WIDTH*2])
       key = libtcod.console_wait_for_keypress(True)
+
       while not key.vk == libtcod.KEY_SPACE:
         key = libtcod.console_wait_for_keypress(True)
+
       status = status[SCREEN_WIDTH*2:]
+
     display_statusline(status)
     libtcod.console_blit(status_console,0,0,SCREEN_WIDTH,
         (SCREEN_HEIGHT-MAP_HEIGHT-1),0,0,MAP_HEIGHT+1,1)
     libtcod.console_flush()
+
   else:
     display_statusline()
     libtcod.console_flush()
 
+
 def display_statusline (message=""):
+
   display_player_stats()
   for x in range (libtcod.console_get_width(status_console)):
     libtcod.console_put_char (status_console, x, 0, ' ', libtcod.BKGND_NONE)
@@ -955,8 +981,6 @@ def handle_keys (key):
   # Clear the status string.
   if turn:
     clear_status()
-  # Show the statusbar.
-  display_status()
 
   # If there are items on the player's current tile, draw them to the screen.
   if items_here():
