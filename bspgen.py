@@ -1,4 +1,4 @@
-import libtcodpy as libtcod
+from libtcod import libtcodpy as libtcod
 
 class Bsp:
     def __init__(self, MAP_WIDTH, MAP_HEIGHT, gameworld):
