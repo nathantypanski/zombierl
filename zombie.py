@@ -22,28 +22,10 @@ import character as C
 import object as O
 import map_vars as M
 import status as S
+import console as cons
 import math, random, pprint, os
 pp = pprint.PrettyPrinter(indent=4)
 
-
-# Set the fps.
-libtcod.sys_set_fps(45)
-
-# Font path
-font = os.path.join(b'data', b'fonts', b'consolas10x10_gs_tc.png')
-# Set the custom font.
-libtcod.console_set_custom_font(font,
-    libtcod.FONT_TYPE_GREYSCALE | libtcod.FONT_LAYOUT_TCOD)
-# Initialize the root console.
-libtcod.console_init_root (M.SCREEN_WIDTH, M.SCREEN_HEIGHT, b'zombie.py', False)
-# Create the game console.
-game_console = libtcod.console_new(M.MAP_WIDTH, M.MAP_HEIGHT)
-gun_console  = libtcod.console_new(M.MAP_WIDTH, M.MAP_HEIGHT)
-# Make the background of gun_console transparent on black.
-libtcod.console_set_key_color(gun_console,libtcod.black)
-# Create an items console
-items_console = libtcod.console_new(30, 40)
-menu_console = libtcod.console_new(M.SCREEN_WIDTH, M.SCREEN_HEIGHT)
 
 ##################
 ## Game objects ##
@@ -154,7 +136,7 @@ class Player(C.Character):
           self.x = x
           self.y = y
       target = Target(self.x, self.y)
-      libtcod.console_blit(game_console,0,0,M.MAP_WIDTH,M.MAP_HEIGHT,0,0,0,1)
+      libtcod.console_blit(cons.game_console,0,0,M.MAP_WIDTH,M.MAP_HEIGHT,0,0,0,1)
       libtcod.console_flush()
       key = libtcod.console_wait_for_keypress(True)
       while not key.vk == libtcod.KEY_SPACE:
@@ -184,13 +166,13 @@ class Player(C.Character):
         x,y=libtcod.line_step()
 
         # Clear the console that shows our target line.
-        libtcod.console_clear(gun_console)
+        libtcod.console_clear(cons.gun_console)
         # Draw the target line on the gun console.
         while (not x is None):
           if (M.gameworld[x][y].is_floor() and
               libtcod.map_is_in_fov (player.fov, x, y)
              ):
-            libtcod.console_set_char_background(gun_console, x, y,
+            libtcod.console_set_char_background(cons.gun_console, x, y,
                 libtcod.white, libtcod.BKGND_OVERLAY)
             target.x=x
             target.y=y
@@ -198,7 +180,7 @@ class Player(C.Character):
           else:
             break
         # Draw the gun console to the root console.
-        libtcod.console_blit(gun_console,0,0,M.MAP_WIDTH,M.MAP_HEIGHT,0,0,0,0,0.5)
+        libtcod.console_blit(cons.gun_console,0,0,M.MAP_WIDTH,M.MAP_HEIGHT,0,0,0,0,0.5)
         libtcod.console_flush()
         key = libtcod.console_wait_for_keypress(True)
       self.equipped[gun].gun.fire(self.x, self.y, target.x, target.y)
@@ -261,24 +243,24 @@ class Gun ():
       steps = steps + 1
       if not M.gameworld[lx][ly].characters:
         libtcod.console_set_char_background(
-                game_console,
+                cons.game_console,
                 lx,
                 ly,
                 libtcod.white,
                 libtcod.BKGND_OVERLAY)
-        libtcod.console_blit(game_console,0,0,M.MAP_WIDTH,M.MAP_HEIGHT,0,0,0,1)
+        libtcod.console_blit(cons.game_console,0,0,M.MAP_WIDTH,M.MAP_HEIGHT,0,0,0,1)
         libtcod.console_flush()
         lx,ly=libtcod.line_step()
       else:
         if random.random() <= shot_accuracy:
           S.add_status("You hit!")
           libtcod.console_set_char_background(
-                  game_console,
+                  cons.game_console,
                   lx,
                   ly,
                   libtcod.red,
                   libtcod.BKGND_OVERLAY)
-          libtcod.console_blit(game_console,0,0,M.MAP_WIDTH,M.MAP_HEIGHT,0,0,0,1)
+          libtcod.console_blit(cons.game_console,0,0,M.MAP_WIDTH,M.MAP_HEIGHT,0,0,0,1)
           libtcod.console_flush()
           M.gameworld[lx][ly].characters[-1].take_damage(
                   int(self.damage*random.uniform(self.accuracy, 1.0)))
@@ -416,44 +398,44 @@ def clear_items():
 # Draws the current items list to the screen
 def draw_items():
   height = 0
-  libtcod.console_set_default_background(items_console, libtcod.red)
-  libtcod.console_set_default_foreground(items_console, libtcod.white)
-  libtcod.console_clear(items_console)
+  libtcod.console_set_default_background(cons.items_console, libtcod.red)
+  libtcod.console_set_default_foreground(cons.items_console, libtcod.white)
+  libtcod.console_clear(cons.items_console)
   for item in tile_items:
-    height+=libtcod.console_print_rect_ex(items_console,
+    height+=libtcod.console_print_rect_ex(cons.items_console,
         0,
         height,
-        libtcod.console_get_width(items_console),
-        libtcod.console_get_height(items_console),
+        libtcod.console_get_width(cons.items_console),
+        libtcod.console_get_height(cons.items_console),
         libtcod.BKGND_NONE,
         libtcod.LEFT,
         item.name)
 
-  libtcod.console_blit(items_console,0,0,
-      libtcod.console_get_width(items_console),
+  libtcod.console_blit(cons.items_console,0,0,
+      libtcod.console_get_width(cons.items_console),
       height,
       0,1,1,
       1.0,0.5)
   libtcod.console_flush()
 
 def item_selector(items, default=None, equipped=[], title="INVENTORY"):
-  libtcod.console_clear(menu_console)
-  libtcod.console_set_default_background(menu_console, libtcod.black)
-  libtcod.console_set_default_foreground(menu_console, libtcod.white)
-  libtcod.console_rect(menu_console, 0, 0, M.MAP_WIDTH, M.MAP_HEIGHT, True)
-  libtcod.console_print_ex(menu_console,
+  libtcod.console_clear(cons.menu_console)
+  libtcod.console_set_default_background(cons.menu_console, libtcod.black)
+  libtcod.console_set_default_foreground(cons.menu_console, libtcod.white)
+  libtcod.console_rect(cons.menu_console, 0, 0, M.MAP_WIDTH, M.MAP_HEIGHT, True)
+  libtcod.console_print_ex(cons.menu_console,
       40, 0, libtcod.BKGND_NONE, libtcod.CENTER, title)
-  libtcod.console_print_ex(menu_console,
+  libtcod.console_print_ex(cons.menu_console,
       1, M.SCREEN_HEIGHT-1, libtcod.LEFT,
     libtcod.BKGND_NONE,
     "[j / k]: Highlight item     [SPACEBAR]: Select     [q]: quit")
   count = 0
   for item in items:
-    libtcod.console_print_ex(menu_console,
+    libtcod.console_print_ex(cons.menu_console,
         1, count+3, libtcod.BKGND_NONE, libtcod.LEFT, item.name)
     if item in equipped:
-      libtcod.console_print_ex(menu_console,
-          libtcod.console_get_width(menu_console)-1,
+      libtcod.console_print_ex(cons.menu_console,
+          libtcod.console_get_width(cons.menu_console)-1,
           count+3,
           libtcod.BKGND_NONE,
           libtcod.RIGHT,
@@ -467,38 +449,38 @@ def item_selector(items, default=None, equipped=[], title="INVENTORY"):
   while not key.vk == libtcod.KEY_SPACE and not ord('q') == key.c:
 
     for i in range(len(items[count].name)):
-      libtcod.console_set_char_background(menu_console,
+      libtcod.console_set_char_background(cons.menu_console,
           i+1,
           count+3,
           libtcod.white)
-      libtcod.console_set_char_foreground(menu_console,
+      libtcod.console_set_char_foreground(cons.menu_console,
           i+1,
           count+3,
           libtcod.black)
     if key.pressed and key.c == ord('k') and count > 0:
       for i in range(len(items[count].name)):
-        libtcod.console_set_char_background(menu_console,
+        libtcod.console_set_char_background(cons.menu_console,
             i+1,
             count+3,
             libtcod.black)
-        libtcod.console_set_char_foreground(menu_console,
+        libtcod.console_set_char_foreground(cons.menu_console,
             i+1,
             count+3,
             libtcod.white)
       count = count -1
     elif key.pressed and key.c == ord('j') and count < len(items)-1:
       for i in range(len(items[count].name)):
-        libtcod.console_set_char_background(menu_console,
+        libtcod.console_set_char_background(cons.menu_console,
             i+1,
             count+3,
             libtcod.black)
-        libtcod.console_set_char_foreground(menu_console,
+        libtcod.console_set_char_foreground(cons.menu_console,
             i+1,
             count+3,
             libtcod.white)
       count = count +1
     key = libtcod.console_check_for_keypress(True)
-    libtcod.console_blit(menu_console,0,0,M.SCREEN_WIDTH,M.SCREEN_HEIGHT,0,0,0,1)
+    libtcod.console_blit(cons.menu_console,0,0,M.SCREEN_WIDTH,M.SCREEN_HEIGHT,0,0,0,1)
     libtcod.console_flush()
 
   if ord('q') == key.c:
@@ -635,48 +617,48 @@ def handle_keys (key):
 
 def render():
   global bsp_map, firstRun
-  libtcod.console_rect(game_console, 0, 0, M.MAP_WIDTH, M.MAP_HEIGHT, True)
+  libtcod.console_rect(cons.game_console, 0, 0, M.MAP_WIDTH, M.MAP_HEIGHT, True)
   for y in range (M.MAP_HEIGHT):
       for x in range (M.MAP_WIDTH):
 
         # Draw black for all areas the player has not seen yet
         if not M.gameworld[x][y].explored:
-          libtcod.console_set_char_background(game_console, x, y,
+          libtcod.console_set_char_background(cons.game_console, x, y,
               libtcod.black, libtcod.BKGND_SET)
 
         # Draw all the floors.
         if M.gameworld[x][y].is_floor () and M.gameworld[x][y].explored:
-          libtcod.console_set_char_background (game_console, x, y,
+          libtcod.console_set_char_background (cons.game_console, x, y,
               M.DARK_FLOOR_COLOR, libtcod.BKGND_SET)
 
         # Draw all the walls.
         elif M.gameworld[x][y].explored:
-          libtcod.console_set_char_background(game_console, x, y,
+          libtcod.console_set_char_background(cons.game_console, x, y,
               M.DARK_WALL_COLOR, libtcod.BKGND_SET)
 
         # Draw all the light floors.
         if (libtcod.map_is_in_fov (player.fov, x, y)
            and libtcod.map_is_walkable (player.fov, x, y)):
-          libtcod.console_set_char_background (game_console, x, y,
+          libtcod.console_set_char_background (cons.game_console, x, y,
               M.FLOOR_COLOR, libtcod.BKGND_SET)
           for item in M.gameworld[x][y].items:
-            libtcod.console_set_default_foreground (game_console, item.color)
-            libtcod.console_put_char (game_console, x, y,
+            libtcod.console_set_default_foreground (cons.game_console, item.color)
+            libtcod.console_put_char (cons.game_console, x, y,
                 item.char, libtcod.BKGND_NONE)
           for character in M.gameworld[x][y].characters:
-            libtcod.console_set_default_foreground (game_console,
+            libtcod.console_set_default_foreground (cons.game_console,
                 character.color)
-            libtcod.console_put_char (game_console, x, y,
+            libtcod.console_put_char (cons.game_console, x, y,
                 character.char, libtcod.BKGND_NONE)
           M.gameworld[x][y].explored=True
 
         # Draw all the light walls.
         elif libtcod.map_is_in_fov (player.fov, x, y):
-          libtcod.console_set_char_background (game_console, x, y,
+          libtcod.console_set_char_background (cons.game_console, x, y,
               M.WALL_COLOR, libtcod.BKGND_SET)
           M.gameworld[x][y].explored=True
   # Blits the game console to the root console.
-  libtcod.console_blit(game_console,0,0,M.MAP_WIDTH,M.MAP_HEIGHT,0,0,0,1)
+  libtcod.console_blit(cons.game_console,0,0,M.MAP_WIDTH,M.MAP_HEIGHT,0,0,0,1)
 
 
 # Places the player character on a non-wall tile.
