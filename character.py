@@ -1,6 +1,7 @@
 from libtcod import libtcodpy as libtcod
 import object as O
 import map_vars as M
+import status as S
 import random
 
 class Character (O.Object):
@@ -74,18 +75,18 @@ class Character (O.Object):
   def attack (self, character):
     damage = self.strength*random.randint(self.strength//2, self.strength*2)
     if random.random() <= self.to_hit:
-      add_status("%s hits %s!" % (self.name, character.name))
+      S.add_status("%s hits %s!" % (self.name, character.name))
       if damage > (0.5*character.max_health):
-        add_status("It's super effective!")
+        S.add_status("It's super effective!")
       character.take_damage(damage)
     else:
-      add_status("%s swings and misses." % (self.name))
+      S.add_status("%s swings and misses." % (self.name))
 
   def take_damage (self, damage):
     self.health -= damage
 
     if 0 > self.health:
-      add_status("%s is killed!" % (self.name))
+      S.add_status("%s is killed!" % (self.name))
       self.health = 0
       M.gameworld[self.x][self.y].characters.remove(self)
       self.drop_all()
