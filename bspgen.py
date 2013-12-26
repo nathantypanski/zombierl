@@ -1,5 +1,7 @@
 from libtcod import libtcodpy as libtcod
 
+# This uses BSP sample code from libtcod to generate bsp-based dungeons.
+
 class Bsp:
     def __init__(self, MAP_WIDTH, MAP_HEIGHT, gameworld):
         self.MAP_WIDTH = MAP_WIDTH
