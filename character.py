@@ -5,7 +5,6 @@ import status as S
 import random
 
 class Character (O.Object):
-
   def __init__ (self, name, max_health, x, y, char, color, npc=False,
       strength=5, to_hit=0.8, view_distance=10):
     self.name = name
