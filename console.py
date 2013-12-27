@@ -10,7 +10,7 @@ libtcod.sys_set_fps(45)
 font = os.path.join(b'data', b'fonts', b'consolas10x10_gs_tc.png')
 # Set the custom font.
 libtcod.console_set_custom_font(font,
-    libtcod.FONT_TYPE_GREYSCALE | libtcod.FONT_LAYOUT_TCOD)
+                                libtcod.FONT_TYPE_GREYSCALE | libtcod.FONT_LAYOUT_TCOD)
 # Initialize the root console.
 libtcod.console_init_root (M.SCREEN_WIDTH, M.SCREEN_HEIGHT, b'zombie.py', False)
 # Create the game console.
